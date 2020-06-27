@@ -94,23 +94,22 @@ class Music(commands.Cog):
         if len(self.songqueue) == 0:
             return('No songs are in the queue.')
         else:
-            queue2 = pd.DataFrame()
+            queue2 = []
             counter = 1
             for item in self.songqueue:
-                newline = {}
-                newline['Title'] = item['Title']
-                newline['Full'] = f"{counter}. `{newline['Title']}`"
-                queue2 = queue2.append(newline, ignore_index=True)
+                newline = f"{counter}. `{item['Title']}`"
+                queue2.append(newline)
                 counter += 1
             string = '\n'
-            fulltext = string.join(queue2['Full'])
+            fulltext = string.join(queue2)
             return(fulltext)
             
     @commands.command(description = 'Plays the song URL or song name (from Youtube). If song is currently playing, adds it to the queue')
-    async def play(self, ctx, url=None):
+    async def play(self, ctx, *args):
         """Plays from a url or song title"""
-        if url:
-            await self.add(self, ctx, url)
+        searchterm = ' '.join(args)
+        if args:
+            await self.add(self, ctx, searchterm)
 
         if not hasattr(ctx.voice_client, 'is_playing'):
             await self.voicechecker(self, ctx)
@@ -132,7 +131,7 @@ class Music(commands.Cog):
         self.states['now_playing'] = song.title
         client.play(song, after= aftersong)
     
-    @commands.command(description = 'Shows the name of the song currently playing')
+    @commands.command(aliases = ['now'], description = 'Shows the name of the song currently playing')
     async def nowplaying(self, ctx):
         """Shows the name of current song playing"""
 
@@ -221,9 +220,9 @@ class Music(commands.Cog):
         client.source.volume = volume / 100
         await ctx.send(f":speaker: Changed volume to `{volume}`%")
 
-    @commands.command(description = 'Stops the music playing and forces bot out of voice channel')
+    @commands.command(description = 'Stops the music, disconnects the bot, and clears the song queue')
     async def stop(self, ctx):
-        """Stops and disconnects the bot from it's voice channel"""
+        """Stops and disconnects the bot, and clears queue"""
         await ctx.voice_client.disconnect()
 
     @commands.command(aliases = ['s'], description = 'Skips the current song')
@@ -266,11 +265,14 @@ class Music(commands.Cog):
         """Deletes locally downloaded songs"""
         dir = os.listdir('./')
         itemlist = []
-        for item in dir:
-            if item.endswith(('.m4a', 'webm')):
-                itemlist.append(item)
-                os.remove(item)
-        await ctx.send(f'Deleted {len(itemlist)} items from the local storage!')
-
+        try:
+            for item in dir:
+                if item.endswith(('.m4a', 'webm')):
+                    itemlist.append(item)
+                    os.remove(item)
+            await ctx.send(f'Deleted {len(itemlist)} items from the local storage!')
+        except:
+            await ctx.send("Can't delete files if a song is currently playing.")
+    
 def setup(bot):
     bot.add_cog(Music(bot))
