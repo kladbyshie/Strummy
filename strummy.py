@@ -8,4 +8,4 @@ async def on_ready():
     print(f'{bot.user} has logged in.')
     bot.load_extension('cogs.music')
     
-bot.run('Token Here')
+bot.run('Insert Token Here')
