@@ -4,4 +4,4 @@
 *.pyc
 .vscode/
 /.vscode
-tokens.txt
+token.txt
