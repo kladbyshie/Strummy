@@ -2,4 +2,5 @@
 *.webm
 *.m4a
 *.pyc
+.vscode/
 /.vscode
