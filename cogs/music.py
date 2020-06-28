@@ -260,7 +260,17 @@ class Music(commands.Cog):
         self.songqueue = []
         await ctx.send('The queue has been cleared!')
 
-    @commands.command(description = 'Songs are downloaded to the PC hosting this server. Run this periodically to delete them to clear up space!')
+    @commands.command(description = 'Shows the songs that are downloaded to local storage')
+    async def cache(self,ctx):
+        dir = os.listdir('./')
+        itemlist = []
+        for item in dir:
+            if item.endswith(('.m4a', 'webm')):
+                itemlist.append(os.stat(item).st_size)
+        mb = round((sum(itemlist)/(1024*1024)),2)
+        await ctx.send(f'There are `{len(itemlist)}` items in local storage, using `{mb}` MB of storage. Run !purge to delete them all!')
+        
+    @commands.command(description = 'Deletes all locally downloaded songs. Make sure you are not playing anything!')
     async def purge(self,ctx):
         """Deletes locally downloaded songs"""
         dir = os.listdir('./')
@@ -271,6 +281,7 @@ class Music(commands.Cog):
                     itemlist.append(item)
                     os.remove(item)
             await ctx.send(f'Deleted {len(itemlist)} items from the local storage!')
+            print(f'Cleared {len(itemlist)} items from local storage!')
         except:
             await ctx.send("Can't delete files if a song is currently playing.")
     
