@@ -57,6 +57,8 @@ class Music(commands.Cog):
         self.bot = bot
         self.songqueue = []
         self.states = {}
+        self.loopplayer = None
+        self.loopstatus = False
 
     @staticmethod
     async def add(self, ctx, url):
@@ -120,15 +122,22 @@ class Music(commands.Cog):
     def playsong(self, ctx, song):
         client = ctx.guild.voice_client
         def aftersong(err):
-            if len(self.songqueue) > 0:
-                song2 = self.songqueue.pop(0)['Player']
-                self.states['now_playing'] = song2.title
-                self.playsong(ctx, song2)
+            if self.loopstatus is True:            
+                song = self.loopplayer
+                self.playsong(ctx, song)
             else:
-                asyncio.run_coroutine_threadsafe(client.disconnect(), self.bot.loop)
-                self.states['now_playing'] = 'Nothing. Nothing is currently playing.'
+                if len(self.songqueue) > 0:
+                    song2 = self.songqueue.pop(0)['Player']
+                    self.states['now_playing'] = song2.title
+                    self.loopplayer = song2
+                    self.playsong(ctx, song2)
+                else:
+                    asyncio.run_coroutine_threadsafe(client.disconnect(), self.bot.loop)
+                    self.states['now_playing'] = 'Nothing. Nothing is currently playing.'
+
         client.pause()
         self.states['now_playing'] = song.title
+        self.loopplayer = song
         client.play(song, after= aftersong)
     
     @commands.command(aliases = ['now'], description = 'Shows the name of the song currently playing')
@@ -136,6 +145,16 @@ class Music(commands.Cog):
         """Shows the name of current song playing"""
 
         await ctx.send(f"Now Playing: `{self.states['now_playing']}`")
+
+    @commands.command()
+    async def loop(self, ctx):
+
+        if self.loopstatus is True:
+            self.loopstatus = False
+            await ctx.send('Turning the loop `off`!')
+        else:
+            self.loopstatus = True
+            await ctx.send('Turning the loop `on`!')
 
     @commands.command(description = 'Shows the song queue, or plays the song in queue if you do !queue #')
     async def queue(self, ctx, selector=None):
@@ -273,6 +292,6 @@ class Music(commands.Cog):
             await ctx.send(f'Deleted {len(itemlist)} items from the local storage!')
         except:
             await ctx.send("Can't delete files if a song is currently playing.")
-    
+
 def setup(bot):
     bot.add_cog(Music(bot))
