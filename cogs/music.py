@@ -284,6 +284,5 @@ class Music(commands.Cog):
             print(f'Cleared {len(itemlist)} items from local storage!')
         except:
             await ctx.send("Can't delete files if a song is currently playing.")
-    
 def setup(bot):
     bot.add_cog(Music(bot))
