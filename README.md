@@ -2,8 +2,9 @@
 Discord music bot
 
 Discord music bot, using Youtube_DL to download music from YouTube and play it in a Discord voice channel. 
-Incorporates a queue system, volume controls, a purge command to delete all .webm and .m4a files that are downloaded, and a search command allowing the user to select one of 10 choices to add to the queue
 
-Will soon be expanded with other functionalities as I think of them. 
+Features a queue system (including skip, play X song in queue), volume controls, a cache and purge command to see all files downloaded and delete them, and a search command allowing the user to select one of 10 choices to add to the queue. 
 
-To use, set up the bot token in the strummy.py file and launch it. 
+To use, create a token.txt file in the directory, and paste in the bot token and save it. Install requirements, and then launch the bot by running strummy.py, or start.bat.
+
+
