@@ -6,3 +6,4 @@ token.txt
 test.py
 *.ipynb
 *.mp4.part
+settings.json
