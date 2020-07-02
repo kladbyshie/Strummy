@@ -127,6 +127,7 @@ class Music(commands.Cog):
             else:
                 asyncio.run_coroutine_threadsafe(client.disconnect(), self.bot.loop)
                 self.states['now_playing'] = 'Nothing. Nothing is currently playing.'
+
         client.pause()
         self.states['now_playing'] = song.title
         client.play(song, after= aftersong)
