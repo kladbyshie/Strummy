@@ -76,7 +76,7 @@ class Genius(commands.Cog):
                 lyricsembed.description = lyrics
                 await ctx.channel.send(f'Here are the lyrics for `{songitem.title}`!', embed=lyricsembed)
             except:
-                await ctx.send("Something's wrong, stopping the genius command.")
+                await ctx.send("Stopping the genius command.")
         else:
             await ctx.send(f"Can't really search for lyrics if there are none provided, right? Try again with words, song titles, or artist names.")
 

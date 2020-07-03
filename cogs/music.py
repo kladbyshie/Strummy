@@ -8,6 +8,7 @@ import pandas as pd
 import os
 from discord.ext import commands
 from discord import Embed
+from itertools import chain
 
 # Suppress noise about console usage from errors
 youtube_dl.utils.bug_reports_message = lambda: ''
@@ -33,6 +34,22 @@ ffmpeg_options = {
 
 ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
 
+def argsmachine(*args):
+    newargs = []
+    args = [x for x in chain.from_iterable(args)]
+    for item in args:
+        item = re.sub(' +', '',item)
+        newargs.append(item)
+    query = ' '.join(newargs)
+    return(query)
+
+class Song():
+    """Class used in assigning songs to queue"""
+    def __init__(self, title, url, player):
+        self.title = title
+        self.url = url
+        self.player = player
+
 class YTDLSource(discord.PCMVolumeTransformer):
     def __init__(self, source, *, data, volume=0.5):
         super().__init__(source, volume)
@@ -52,20 +69,22 @@ class YTDLSource(discord.PCMVolumeTransformer):
         filename = data['url'] if stream else ytdl.prepare_filename(data)
         return cls(discord.FFmpegPCMAudio(filename, **ffmpeg_options, executable = "C:/ffmpeg/bin/ffmpeg.exe"), data=data)
 
+    
+
 class Music(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.songqueue = []
         self.states = {}
-        self.loopplayer = None
         self.loopstatus = False
+        self.loopplayer = None
 
     @staticmethod
     async def add(self, ctx, url):
         """Helper function for converting added songs to players and adding them to the songqueue"""
         player = await YTDLSource.from_url(url)
-        newline = {'Requester': ctx.message.author, 'Title': player.title, 'URL': player.url, 'Player': player}
-        self.songqueue.append(newline)
+        newsong = Song(player.title,player.url,player)
+        self.songqueue.append(newsong)
         await ctx.send(f"Adding `{player.title}` to the queue!")
 
     @staticmethod
@@ -99,23 +118,23 @@ class Music(commands.Cog):
             queue2 = []
             counter = 1
             for item in self.songqueue:
-                newline = f"{counter}. `{item['Title']}`"
+                newline = f"{counter}. `{item.title}`"
                 queue2.append(newline)
                 counter += 1
             string = '\n'
             fulltext = string.join(queue2)
             return(fulltext)
-            
+
     @commands.command(description = 'Plays the song URL or song name (from Youtube). If song is currently playing, adds it to the queue')
     async def play(self, ctx, *args):
         """Plays from a url or song title"""
-        searchterm = ' '.join(args)
+        args = argsmachine(args)
         if args:
-            await self.add(self, ctx, searchterm)
+            await self.add(self, ctx, args)
 
         if not hasattr(ctx.voice_client, 'is_playing'):
             await self.voicechecker(self, ctx)
-            song = self.songqueue.pop(0)['Player']
+            song = self.songqueue.pop(0).player
             self.playsong(ctx,song)
             await ctx.send(f'Now playing: `{song.title}`')
 
@@ -127,7 +146,7 @@ class Music(commands.Cog):
                 self.playsong(ctx, song)
             else:
                 if len(self.songqueue) > 0:
-                    song2 = self.songqueue.pop(0)['Player']
+                    song2 = self.songqueue.pop(0).player
                     self.states['now_playing'] = song2.title
                     self.loopplayer = song2
                     self.playsong(ctx, song2)
@@ -160,7 +179,7 @@ class Music(commands.Cog):
     async def queue(self, ctx, selector=None):
         """Shows the song queue, or plays the song in queue if you do !queue #"""
         if selector:
-            song = self.songqueue.pop(int(selector)-1)['Player']
+            song = self.songqueue.pop(int(selector)-1).player
             self.playsong(ctx, song)
             await ctx.send(f'Playing `{song.title}`')
         else:
@@ -174,7 +193,7 @@ class Music(commands.Cog):
         """Searches youtube for song name and lets user select from 10 results"""                
         while True:
             try:
-                searchterm = ' '.join(args)
+                searchterm = argsmachine(args)
                 item = requests.get('https://www.youtube.com/results?search_query=' + searchterm)
                 soup = bs4.BeautifulSoup(item.text, features='html.parser')
                 allvids = soup.findAll('a',attrs={'class':'yt-uix-tile-link'})[:10]
@@ -217,7 +236,7 @@ class Music(commands.Cog):
             await self.add(self, ctx, new['Href'][message])
             if not hasattr(ctx.voice_client, 'is_playing'):
                 await self.voicechecker(self, ctx)
-                song = self.songqueue.pop(0)['Player']
+                song = self.songqueue.pop(0).player
                 self.playsong(ctx,song)
                 await ctx.send(f'Now Playing: `{song.title}`')
         except:
@@ -253,11 +272,11 @@ class Music(commands.Cog):
             await ctx.voice_client.disconnect()
         else:
             if not hasattr(ctx.voice_client, 'is_playing'):
-                song = self.songqueue.pop(0)['Player']
+                song = self.songqueue.pop(0).player
                 await ctx.send(f'Skipping current song`! Next song is going to be `{song.title}`')
             else:
                 player.pause()
-                song = self.songqueue.pop(0)['Player']
+                song = self.songqueue.pop(0).player
                 await ctx.send(f'Skipping current song! Now playing: `{song.title}`')
                 self.playsong(ctx,song)
 
@@ -278,6 +297,16 @@ class Music(commands.Cog):
         """Clears the song queue"""
         self.songqueue = []
         await ctx.send('The queue has been cleared!')
+
+    @commands.command(description = 'Shows the songs that are downloaded to local storage')
+    async def cache(self,ctx):
+        dir = os.listdir('./')
+        itemlist = []
+        for item in dir:
+            if item.endswith(('.m4a', 'webm')):
+                itemlist.append(os.stat(item).st_size)
+        mb = round((sum(itemlist)/(1024*1024)),2)
+        await ctx.send(f'There are `{len(itemlist)}` items in local storage, using `{mb}` MB of storage. Run !purge to delete them all!')
 
     @commands.command(description = 'Songs are downloaded to the PC hosting this server. Run this periodically to delete them to clear up space!')
     async def purge(self,ctx):
