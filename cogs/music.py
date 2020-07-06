@@ -82,10 +82,11 @@ class Music(commands.Cog):
     @staticmethod
     async def add(self, ctx, url):
         """Helper function for converting added songs to players and adding them to the songqueue"""
-        player = await YTDLSource.from_url(url)
-        newsong = Song(player.title,player.url,player)
-        self.songqueue.append(newsong)
-        await ctx.send(f"Adding `{player.title}` to the queue!")
+        async with ctx.channel.typing():
+            player = await YTDLSource.from_url(url)
+            newsong = Song(player.title,player.url,player)
+            self.songqueue.append(newsong)
+            await ctx.send(f"Adding `{player.title}` to the queue!")
 
     @staticmethod
     async def voicechecker(self, ctx):
@@ -190,57 +191,58 @@ class Music(commands.Cog):
 
     @commands.command(description = 'Searches YouTube and prints the top 10 results. Type in the # of the song you want added to the queue, or "no" to exit the command!')
     async def search(self, ctx, *args):
-        """Searches youtube for song name and lets user select from 10 results"""                
-        while True:
-            try:
-                searchterm = argsmachine(args)
-                item = requests.get('https://www.youtube.com/results?search_query=' + searchterm)
-                soup = bs4.BeautifulSoup(item.text, features='html.parser')
-                allvids = soup.findAll('a',attrs={'class':'yt-uix-tile-link'})[:10]
-                new = pd.DataFrame()
-                counter = 1
-                for item in allvids:
-                    newline = {}
-                    newline['Title'] = item['title']
-                    newline['Href'] = 'https://www.youtube.com' + item['href']
-                    newline['Name'] = f"{counter}. {newline['Title']} - {newline['Href']}"
-                    new = new.append(newline, ignore_index=True)
-                    counter += 1
-                string = '\n'
-                embed = Embed()
-                embed.description = string.join(new['Name'])
-                await ctx.channel.send(embed=embed)
-                break
-            except:
-                continue
-
-        def check(msg):
-            return msg.author == ctx.author and msg.channel == ctx.channel
-
-        while True:
-            try:
-                message = await self.bot.wait_for('message', check = check, timeout=30)
-                if message.content == 'no':
+        """Searches youtube for song name and lets user select from 10 results"""
+        async with ctx.channel.typing():                
+            while True:
+                try:
+                    searchterm = argsmachine(args)
+                    item = requests.get('https://www.youtube.com/results?search_query=' + searchterm)
+                    soup = bs4.BeautifulSoup(item.text, features='html.parser')
+                    allvids = soup.findAll('a',attrs={'class':'yt-uix-tile-link'})[:10]
+                    new = pd.DataFrame()
+                    counter = 1
+                    for item in allvids:
+                        newline = {}
+                        newline['Title'] = item['title']
+                        newline['Href'] = 'https://www.youtube.com' + item['href']
+                        newline['Name'] = f"{counter}. {newline['Title']} - {newline['Href']}"
+                        new = new.append(newline, ignore_index=True)
+                        counter += 1
+                    string = '\n'
+                    embed = Embed()
+                    embed.description = string.join(new['Name'])
+                    await ctx.channel.send(embed=embed)
                     break
-                else:
-                    message = int(message.content)-1
-                    break
-            except asyncio.TimeoutError:
-                await ctx.send("You didn't reply in time! Enter the #.")
-                continue
+                except:
+                    continue
+
+            def check(msg):
+                return msg.author == ctx.author and msg.channel == ctx.channel
+
+            while True:
+                try:
+                    message = await self.bot.wait_for('message', check = check, timeout=30)
+                    if message.content == 'no':
+                        break
+                    else:
+                        message = int(message.content)-1
+                        break
+                except asyncio.TimeoutError:
+                    await ctx.send("You didn't reply in time! Enter the #.")
+                    continue
+                except:
+                    await ctx.send("Are you SURE that was a number from 1 to 10? Try entering the # again, or enter 'no' to exit the search command.")
+                    continue
+            
+            try:
+                await self.add(self, ctx, new['Href'][message])
+                if not hasattr(ctx.voice_client, 'is_playing'):
+                    await self.voicechecker(self, ctx)
+                    song = self.songqueue.pop(0).player
+                    self.playsong(ctx,song)
+                    await ctx.send(f'Now Playing: `{song.title}`')
             except:
-                await ctx.send("Are you SURE that was a number from 1 to 10? Try entering the # again, or enter 'no' to exit the search command.")
-                continue
-        
-        try:
-            await self.add(self, ctx, new['Href'][message])
-            if not hasattr(ctx.voice_client, 'is_playing'):
-                await self.voicechecker(self, ctx)
-                song = self.songqueue.pop(0).player
-                self.playsong(ctx,song)
-                await ctx.send(f'Now Playing: `{song.title}`')
-        except:
-            await ctx.send("Stopping the search command.")
+                await ctx.send("Stopping the search command.")
     
     @commands.command(aliases = ['vol'], description = 'Shows the current volume, or changed the volume to the # specified (default is 50)')
     async def volume(self, ctx, volume: int = None):
@@ -298,29 +300,32 @@ class Music(commands.Cog):
         self.songqueue = []
         await ctx.send('The queue has been cleared!')
 
-    @commands.command(description = 'Shows the songs that are downloaded to local storage')
+    @commands.command(aliases = ['purge'], description = 'Shows the songs that are downloaded to local storage')
     async def cache(self,ctx):
+        """Shows and deletes songs that are locally stored."""
         dir = os.listdir('./')
         itemlist = []
         for item in dir:
             if item.endswith(('.m4a', 'webm')):
                 itemlist.append(os.stat(item).st_size)
         mb = round((sum(itemlist)/(1024*1024)),2)
-        await ctx.send(f'There are `{len(itemlist)}` items in local storage, using `{mb}` MB of storage. Run !purge to delete them all!')
+        await ctx.send(f'There are `{len(itemlist)}` items in local storage, using `{mb}` MB of storage. Would you like to delete them? (`yes`/`no`)')
 
-    @commands.command(description = 'Songs are downloaded to the PC hosting this server. Run this periodically to delete them to clear up space!')
-    async def purge(self,ctx):
-        """Deletes locally downloaded songs"""
-        dir = os.listdir('./')
-        itemlist = []
-        try:
+        def check(msg):
+            return msg.author == ctx.author and msg.channel == ctx.channel
+
+        message = await self.bot.wait_for('message', check = check, timeout=30)
+        message = message.content
+        message = message.strip()
+        message = message.lower()
+        if message == "yes":
             for item in dir:
                 if item.endswith(('.m4a', 'webm')):
-                    itemlist.append(item)
                     os.remove(item)
-            await ctx.send(f'Deleted {len(itemlist)} items from the local storage!')
-        except:
-            await ctx.send("Can't delete files if a song is currently playing.")
+            await ctx.send(f'Deleted `{len(itemlist)}` items from the local storage!')
+        else:
+            await ctx.send("Didn't get a concrete 'yes', not deleting anything...")
+
 
 def setup(bot):
     bot.add_cog(Music(bot))
