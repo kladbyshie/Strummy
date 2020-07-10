@@ -9,6 +9,7 @@ import os
 from discord.ext import commands
 from discord import Embed
 from itertools import chain
+from aux_forms import argsmachine
 
 # Suppress noise about console usage from errors
 youtube_dl.utils.bug_reports_message = lambda: ''
@@ -33,15 +34,6 @@ ffmpeg_options = {
 }
 
 ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
-
-def argsmachine(*args):
-    newargs = []
-    args = [x for x in chain.from_iterable(args)]
-    for item in args:
-        item = re.sub(' +', '',item)
-        newargs.append(item)
-    query = ' '.join(newargs)
-    return(query)
 
 class Song():
     """Class used in assigning songs to queue"""
@@ -68,8 +60,6 @@ class YTDLSource(discord.PCMVolumeTransformer):
 
         filename = data['url'] if stream else ytdl.prepare_filename(data)
         return cls(discord.FFmpegPCMAudio(filename, **ffmpeg_options, executable = "C:/ffmpeg/bin/ffmpeg.exe"), data=data)
-
-    
 
 class Music(commands.Cog):
     def __init__(self, bot):
@@ -125,7 +115,7 @@ class Music(commands.Cog):
             string = '\n'
             fulltext = string.join(queue2)
             return(fulltext)
-
+    
     @commands.command(description = 'Plays the song URL or song name (from Youtube). If song is currently playing, adds it to the queue')
     async def play(self, ctx, *args):
         """Plays from a url or song title"""
@@ -198,7 +188,7 @@ class Music(commands.Cog):
                     searchterm = argsmachine(args)
                     item = requests.get('https://www.youtube.com/results?search_query=' + searchterm)
                     soup = bs4.BeautifulSoup(item.text, features='html.parser')
-                    allvids = soup.findAll('a',attrs={'class':'yt-uix-tile-link'})[:10]
+                    allvids = soup.findAll('a',attrs={'class':'yt-uix-tile-link'})[:10]                   
                     new = pd.DataFrame()
                     counter = 1
                     for item in allvids:
@@ -210,7 +200,7 @@ class Music(commands.Cog):
                         counter += 1
                     string = '\n'
                     embed = Embed()
-                    embed.description = string.join(new['Name'])
+                    embed.description = string.join(new)
                     await ctx.channel.send(embed=embed)
                     break
                 except:
@@ -325,7 +315,6 @@ class Music(commands.Cog):
             await ctx.send(f'Deleted `{len(itemlist)}` items from the local storage!')
         else:
             await ctx.send("Didn't get a concrete 'yes', not deleting anything...")
-
 
 def setup(bot):
     bot.add_cog(Music(bot))

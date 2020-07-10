@@ -1,12 +1,8 @@
 import discord
 from discord.ext import commands
+from aux_forms import read_token
 
-def read_token():
-    with open("token.txt", "r") as tok:
-        lines = tok.readlines()
-        return(lines[0].strip())
-
-token = read_token()
+token = read_token(0)
 
 bot = commands.Bot(command_prefix='!')
 

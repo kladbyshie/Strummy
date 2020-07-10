@@ -6,3 +6,6 @@
 /.vscode
 *.mp4.part
 aux.py
+youtube.txt
+token.txt
+*.ipynb
