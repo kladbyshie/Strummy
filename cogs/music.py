@@ -299,7 +299,7 @@ class Music(commands.Cog):
             if item.endswith(('.m4a', 'webm')):
                 itemlist.append(os.stat(item).st_size)
         mb = round((sum(itemlist)/(1024*1024)),2)
-        await ctx.send(f'There are `{len(itemlist)}` items in local storage, using `{mb}` MB of storage. Would you like to delete them? (`yes`/`no`)')
+        await ctx.send(f'There are `{len(itemlist)}` items in local storage, using `{mb}` MB of storage. This will stop the music and clear the queue. Would you like to proceed? (`yes`/`no`)')
 
         def check(msg):
             return msg.author == ctx.author and msg.channel == ctx.channel
@@ -309,6 +309,7 @@ class Music(commands.Cog):
         message = message.strip()
         message = message.lower()
         if message == "yes":
+            await ctx.voice_client.disconnect()
             for item in dir:
                 if item.endswith(('.m4a', 'webm')):
                     os.remove(item)
