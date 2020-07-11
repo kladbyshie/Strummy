@@ -6,7 +6,7 @@ import re
 from discord.ext import commands
 from discord import Embed
 from itertools import chain
-from aux_forms import argsmachine, read_token
+from aux_forms import argsmachine, read_token, check, concatenator
 import math
 
 token = read_token(1)
@@ -39,20 +39,9 @@ class Genius(commands.Cog):
                     new = item['result']
                     newsong = Song(new['full_title'], new['url'], new)
                     allitems.append(newsong)
-                titlelist = []
-                counter = 1
-                for item in allitems:
-                    newline = f'{counter}. {item.title}'
-                    titlelist.append(newline)
-                    counter += 1
-                string = '\n'
                 embed = Embed()
-                embed.description = string.join(titlelist)
+                embed.description = concatenator(allitems)
                 await ctx.channel.send('Here are some results of the songs that you wanted. Type in the # of which result you want the lyrics to, or "no" to back out!', embed=embed)
-
-                def check(msg):
-                    return msg.author == ctx.author and msg.channel == ctx.channel
-
                 while True:
                     try:
                         message = await self.bot.wait_for('message', check = check, timeout=30)

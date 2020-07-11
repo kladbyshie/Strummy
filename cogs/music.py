@@ -9,7 +9,7 @@ import os
 from discord.ext import commands
 from discord import Embed
 from itertools import chain
-from aux_forms import argsmachine
+from aux_forms import argsmachine, check, concatenator
 
 # Suppress noise about console usage from errors
 youtube_dl.utils.bug_reports_message = lambda: ''
@@ -50,8 +50,8 @@ class YTDLSource(discord.PCMVolumeTransformer):
         self.url = data.get('url')
 
     @classmethod
-    async def from_url(cls, url, *, loop=None, stream=False):
-        loop = loop or asyncio.get_event_loop()
+    async def from_url(cls, url, *, stream=False):
+        loop = asyncio.get_event_loop()
         data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=not stream))
 
         if 'entries' in data:
@@ -65,9 +65,7 @@ class Music(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.songqueue = []
-        self.states = {}
-        self.loopstatus = False
-        self.loopplayer = None
+        self.states = {'now_playing' : None}
 
     @staticmethod
     async def add(self, ctx, url):
@@ -106,16 +104,19 @@ class Music(commands.Cog):
         if len(self.songqueue) == 0:
             return('No songs are in the queue.')
         else:
-            queue2 = []
-            counter = 1
-            for item in self.songqueue:
-                newline = f"{counter}. `{item.title}`"
-                queue2.append(newline)
-                counter += 1
-            string = '\n'
-            fulltext = string.join(queue2)
+            fulltext = concatenator(self.songqueue)
             return(fulltext)
-    
+
+    @staticmethod
+    def purge():
+        print('purger online')
+        itemlist = []
+        dir = os.listdir('./')
+        for item in dir:
+            if item.endswith(('.m4a', 'webm')):
+                itemlist.append(item)
+                os.remove(item)
+
     @commands.command(description = 'Plays the song URL or song name (from Youtube). If song is currently playing, adds it to the queue')
     async def play(self, ctx, *args):
         """Plays from a url or song title"""
@@ -132,39 +133,23 @@ class Music(commands.Cog):
     def playsong(self, ctx, song):
         client = ctx.guild.voice_client
         def aftersong(err):
-            if self.loopstatus is True:            
-                song = self.loopplayer
-                self.playsong(ctx, song)
+            if len(self.songqueue) > 0:
+                song2 = self.songqueue.pop(0).player
+                self.states['now_playing'] = song2.title
+                self.playsong(ctx, song2)
             else:
-                if len(self.songqueue) > 0:
-                    song2 = self.songqueue.pop(0).player
-                    self.states['now_playing'] = song2.title
-                    self.loopplayer = song2
-                    self.playsong(ctx, song2)
-                else:
-                    asyncio.run_coroutine_threadsafe(client.disconnect(), self.bot.loop)
-                    self.states['now_playing'] = 'Nothing. Nothing is currently playing.'
+                asyncio.run_coroutine_threadsafe(client.disconnect(), self.bot.loop)
+                self.states['now_playing'] = None
 
         client.pause()
         self.states['now_playing'] = song.title
-        self.loopplayer = song
         client.play(song, after= aftersong)
     
     @commands.command(aliases = ['now'], description = 'Shows the name of the song currently playing')
     async def nowplaying(self, ctx):
         """Shows the name of current song playing"""
 
-        await ctx.send(f"Now Playing: `{self.states['now_playing']}`")
-
-    @commands.command()
-    async def loop(self, ctx):
-
-        if self.loopstatus is True:
-            self.loopstatus = False
-            await ctx.send('Turning the loop `off`!')
-        else:
-            self.loopstatus = True
-            await ctx.send('Turning the loop `on`!')
+        await ctx.send(f"Now playing: `{self.states['now_playing']}`")
 
     @commands.command(description = 'Shows the song queue, or plays the song in queue if you do !queue #')
     async def queue(self, ctx, selector=None):
@@ -177,7 +162,7 @@ class Music(commands.Cog):
             queue = await self.returnqueue(self,ctx)
             embed=Embed()
             embed.description = queue
-            await ctx.send(embed=embed)
+            await ctx.send('Here are the songs in queue! Try !queue # to play that song immediately.',embed=embed)
 
     @commands.command(description = 'Searches YouTube and prints the top 10 results. Type in the # of the song you want added to the queue, or "no" to exit the command!')
     async def search(self, ctx, *args):
@@ -301,15 +286,15 @@ class Music(commands.Cog):
         mb = round((sum(itemlist)/(1024*1024)),2)
         await ctx.send(f'There are `{len(itemlist)}` items in local storage, using `{mb}` MB of storage. This will stop the music and clear the queue. Would you like to proceed? (`yes`/`no`)')
 
-        def check(msg):
-            return msg.author == ctx.author and msg.channel == ctx.channel
-
         message = await self.bot.wait_for('message', check = check, timeout=30)
         message = message.content
         message = message.strip()
         message = message.lower()
         if message == "yes":
-            await ctx.voice_client.disconnect()
+            try:
+                await ctx.voice_client.disconnect()
+            except:
+                pass
             for item in dir:
                 if item.endswith(('.m4a', 'webm')):
                     os.remove(item)
