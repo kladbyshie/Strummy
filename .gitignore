@@ -1,13 +1,12 @@
-/env
 *.webm
 *.m4a
+*.mp4.part
 *.pyc
 .vscode/
-/.vscode
-*.mp4.part
 aux.py
 youtube.txt
 token.txt
 *.ipynb
 __pycache__
 .ipynb_checkpoints
+**/env
