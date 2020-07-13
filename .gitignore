@@ -4,7 +4,6 @@
 *.pyc
 .vscode/
 aux.py
-youtube.txt
 token.txt
 *.ipynb
 __pycache__
