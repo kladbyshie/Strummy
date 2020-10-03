@@ -6,7 +6,7 @@ import re
 from discord.ext import commands
 from discord import Embed
 from itertools import chain
-from aux_forms import argsmachine, read_token, check, concatenator
+from aux_forms import argsmachine, read_token, concatenator
 import math
 
 token = read_token(1)
@@ -42,21 +42,26 @@ class Genius(commands.Cog):
                 embed = Embed()
                 embed.description = concatenator(allitems)
                 await ctx.channel.send('Here are some results of the songs that you wanted. Type in the # of which result you want the lyrics to, or "no" to back out!', embed=embed)
+                
+                def check(msg):
+                    return msg.author == ctx.author and msg.channel == ctx.channel
+
                 while True:
+                    message = await self.bot.wait_for('message', check = check, timeout=30)
+                    message = message.content.strip()
+                    if message == 'no':
+                        break
                     try:
-                        message = await self.bot.wait_for('message', check = check, timeout=30)
-                        message = message.content.strip()
-                        if message == 'no':
-                            break
-                        else:
-                            message = int(message)-1
-                            break
-                    except asyncio.TimeoutError:
+                        message = int(message)-1
+                        break
+                    except:
+                        print(type(message))
+                        await ctx.send("This message is not an int, try again.")
+                        continue
+                    if asyncio.TimeoutError:
                         await ctx.send("You didn't reply in time! Enter the #.")
                         continue
-                    except:
-                        await ctx.send(f"Try entering the # again, or enter 'no' to exit the search command.")
-                        continue
+                    
 
                 try:
                     chosensong = allitems[message]

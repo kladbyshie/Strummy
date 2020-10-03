@@ -9,7 +9,7 @@ import os
 from discord.ext import commands
 from discord import Embed
 from itertools import chain
-from aux_forms import argsmachine, check, concatenator
+from aux_forms import argsmachine, concatenator
 
 # Suppress noise about console usage from errors
 youtube_dl.utils.bug_reports_message = lambda: ''
@@ -285,6 +285,9 @@ class Music(commands.Cog):
                 itemlist.append(os.stat(item).st_size)
         mb = round((sum(itemlist)/(1024*1024)),2)
         await ctx.send(f'There are `{len(itemlist)}` items in local storage, using `{mb}` MB of storage. This will stop the music and clear the queue. Would you like to proceed? (`yes`/`no`)')
+
+        def check(msg):
+            return msg.author == ctx.author and msg.channel == ctx.channel
 
         message = await self.bot.wait_for('message', check = check, timeout=30)
         message = message.content

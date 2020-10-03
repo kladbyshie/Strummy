@@ -16,9 +16,6 @@ def read_token(num):
         lines = tok.readlines()
         return(lines[num].strip())
 
-def check(msg):
-    return msg.author == ctx.author and msg.channel == ctx.channel
-
 def concatenator(itemlist):
     counter = 1
     titlelist = []
